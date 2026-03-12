@@ -16,33 +16,8 @@
       "dest": "src/server.js"
     },
     {
-      "src": "/api/cron",
-      "dest": "src/server.js"
-    },
-    {
       "src": "/(.*)",
       "dest": "public/$1"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "* * * * *"
-    }
-  ],
-  "env": {
-    "JWT_SECRET": "@jwt-secret",
-    "JWT_EXPIRES": "24",
-    "ADMIN_LOGIN": "admin",
-    "ADMIN_PASSWORD": "admin",
-    "ADMIN_NAME": "Administrador",
-    "DB_HOST": "38.52.128.131",
-    "DB_PORT": "5433",
-    "DB_NAME": "msconnect",
-    "DB_USER": "vai",
-    "DB_PASS": "Vai_2025",
-    "DB_SSL": "false",
-    "WHATSAPP_API_URL": "@whatsapp-api-url",
-    "WHATSAPP_API_TOKEN": "@whatsapp-api-token"
-  }
+  ]
 }
