@@ -38,9 +38,9 @@
     "ADMIN_NAME": "Administrador",
     "DB_HOST": "38.52.128.131",
     "DB_PORT": "5433",
-    "DB_NAME": "@db-name",
+    "DB_NAME": "msconnect",
     "DB_USER": "vai",
-    "DB_PASS": "@db-pass",
+    "DB_PASS": "Vai_2025",
     "DB_SSL": "false",
     "WHATSAPP_API_URL": "@whatsapp-api-url",
     "WHATSAPP_API_TOKEN": "@whatsapp-api-token"
