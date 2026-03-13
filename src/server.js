@@ -71,22 +71,23 @@ app.use('/api/whatsapp',  whatsappRouter);
 // Em produção local use node-cron ou um agendador externo.
 // =====================================================================
 app.get('/api/cron', async (req, res) => {
-  // Proteção simples: só aceita chamada interna do Vercel
-  const cronSecret = req.headers['x-vercel-cron-signature'] || req.query.secret;
-  // Se quiser adicionar um CRON_SECRET nas env vars do Vercel, descomente:
-  // if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
-  //   return res.status(401).json({ error: 'Unauthorized' });
-  // }
+  const cronSecret = req.headers['x-cron-secret'] || req.query.secret;
+  if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   try {
     const config = await db.get('SELECT * FROM wa_config WHERE id = 1');
     if (!config || !config.ativo) return res.json({ skipped: 'cron desativado' });
 
     const now = new Date();
-    const currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-    if (currentTime !== config.horario) return res.json({ skipped: `horario nao bateu (${currentTime} != ${config.horario})` });
+    // Converter para horário de Brasília (UTC-3)
+    const brDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const today = brDate.toLocaleDateString('pt-BR');
 
-    const today = now.toLocaleDateString('pt-BR');
+    // Verificar horário exato (cron roda a cada minuto)
+    const currentTime = String(brDate.getHours()).padStart(2, '0') + ':' + String(brDate.getMinutes()).padStart(2, '0');
+    if (currentTime !== config.horario) return res.json({ skipped: `horario nao bateu (${currentTime} != ${config.horario})` });
     const alreadySent = await db.get("SELECT id FROM wa_logs WHERE date = $1 AND status = 'ok'", [today]);
     if (alreadySent) return res.json({ skipped: 'ja enviado hoje' });
 
