@@ -191,7 +191,7 @@ async function api(method, path, body){
   if(token)opts.headers['Authorization']=`Bearer ${token}`;
   if(body)opts.body=JSON.stringify(body);
   const r=await fetch(API_BASE+'/api'+path,opts);
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||r.status)}
+  if(!r.ok){const e=await r.json().catch(()=>({}));const err=new Error(e.error||r.status);err.apiBody=e;throw err}
   return r.json();
 }
 
@@ -445,11 +445,11 @@ ${S.waLogs?.length?`<div style="margin-top:16px"><div style="font-size:11px;font
 </div>`}
 
 // MODAL HELPERS
-function shM(h){let m=document.getElementById('modal');if(!m){m=document.createElement('div');m.id='modal';m.className='Mo';document.body.appendChild(m)}m.innerHTML=`<div class="Mc">${h}</div>`;m.style.display='flex';m.onclick=e=>{if(e.target===m)clM()}}
-function clM(){const m=document.getElementById('modal');if(m)m.style.display='none'}
+function shM(h){const e=document.createElement('div');e.className='mo';e.id='mo';e.innerHTML=`<div class="ml">${h}</div>`;e.onclick=ev=>{if(ev.target===e)clM()};document.body.appendChild(e)}
+function clM(){document.getElementById('mo')?.remove()}
 
 // TOAST
-function tt(msg,type){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t)}t.className='toast'+(type==='te'?' te':'');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2800)}
+function tt(m,t='ts'){const e=document.createElement('div');e.className=`toast ${t}`;e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),2500)}
 
 // NOVA VENDA MODAL
 function oSM(){if(!CU)return;const d=dim(cm),td=Math.min(new Date().getDate(),d);
@@ -714,7 +714,12 @@ window.sendWANow=async function(){
     const r=await api('POST','/whatsapp/send',{month:cm,year:2026});
     const logs=await api('GET','/whatsapp/logs').catch(()=>[]);S.waLogs=logs;
     tt(r.message||'Enviado!');R();
-  }catch(e){tt('Falha: '+e.message,'te');R()}
+  }catch(e){
+    const detail=e.apiBody?.api_body?JSON.stringify(e.apiBody.api_body):e.message;
+    tt('Falha: '+detail,'te');
+    console.error('[sendWANow]',e.apiBody||e.message);
+    R();
+  }
 }
 
 // BIND
