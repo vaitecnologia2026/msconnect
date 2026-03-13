@@ -19,7 +19,7 @@ router.get('/config', auth, roles('admin', 'analista'), asyncHandler(async (req,
 
 // PUT /api/whatsapp/config
 router.put('/config', auth, roles('admin', 'analista'), asyncHandler(async (req, res) => {
-  const { numbers, report_items, horario, ativo, api_endpoint, formato } = req.body;
+  const { numbers, report_items, horario, ativo, api_endpoint, formato, wa_token, wa_id } = req.body;
   const sets = [];
   const params = [];
   let i = 1;
@@ -30,6 +30,8 @@ router.put('/config', auth, roles('admin', 'analista'), asyncHandler(async (req,
   if (ativo        !== undefined) { sets.push(`ativo = $${i++}`);        params.push(ativo ? 1 : 0); }
   if (api_endpoint !== undefined) { sets.push(`api_endpoint = $${i++}`); params.push(api_endpoint); }
   if (formato      !== undefined) { sets.push(`formato = $${i++}`);      params.push(formato); }
+  if (wa_token     !== undefined) { sets.push(`wa_token = $${i++}`);     params.push(wa_token); }
+  if (wa_id        !== undefined) { sets.push(`wa_id = $${i++}`);        params.push(wa_id); }
 
   if (sets.length > 0) {
     params.push(1); // WHERE id = 1
@@ -69,14 +71,18 @@ router.delete('/config/numbers/:index', auth, roles('admin', 'analista'), asyncH
 // =====================================================================
 
 // POST /api/whatsapp/send
+const WA_API_URL = 'https://backend-chat.vaidavenda.com.br/api/v1/messages';
+
 router.post('/send', auth, roles('admin', 'analista', 'diretor'), asyncHandler(async (req, res) => {
   const config = await db.get('SELECT * FROM wa_config WHERE id = 1');
   const numbers     = JSON.parse(config.numbers      || '[]');
   const reportItems = JSON.parse(config.report_items || '{}');
-  const endpoint    = config.api_endpoint || process.env.WHATSAPP_API_URL;
+  const waToken     = config.wa_token || '';
+  const waId        = config.wa_id    || '';
 
   if (!numbers.length) return res.status(400).json({ error: 'Nenhum numero cadastrado' });
-  if (!endpoint)       return res.status(400).json({ error: 'Endpoint nao configurado' });
+  if (!waToken)        return res.status(400).json({ error: 'Token nao configurado' });
+  if (!waId)           return res.status(400).json({ error: 'ID nao configurado' });
 
   const month = req.body.month !== undefined ? +req.body.month : new Date().getMonth();
   const year  = req.body.year  || 2026;
@@ -139,14 +145,15 @@ router.post('/send', auth, roles('admin', 'analista', 'diretor'), asyncHandler(a
   };
 
   try {
-    await axios.post(endpoint, {
+    await axios.post(WA_API_URL, {
       numbers,
       message: msg,
       format:  config.formato || 'texto',
+      id:      waId,
     }, {
       headers: {
         'Content-Type':  'application/json',
-        'Authorization': `Bearer ${process.env.WHATSAPP_API_TOKEN || ''}`,
+        'Authorization': `Bearer ${waToken}`,
       },
       timeout: 15000,
     });
