@@ -164,11 +164,22 @@ router.post('/send', auth, roles('admin', 'analista', 'diretor'), asyncHandler(a
     );
     res.json({ message: 'Relatorio enviado', log: { ...logData, status: 'ok' } });
   } catch (e) {
+    const apiStatus  = e.response?.status  || null;
+    const apiBody    = e.response?.data    || null;
+    const errDetail  = apiBody ? JSON.stringify(apiBody) : e.message;
+
+    console.error('[WA SEND] status:', apiStatus, '| body:', JSON.stringify(apiBody));
+    console.error('[WA SEND] payload enviado:', JSON.stringify({ numbers, id: waId, format: config.formato }));
+
     await db.run(
       'INSERT INTO wa_logs (date, time, numbers, status, message) VALUES ($1,$2,$3,$4,$5)',
-      [logData.date, logData.time, logData.numbers, 'erro', e.message]
+      [logData.date, logData.time, logData.numbers, 'erro', errDetail.substring(0, 200)]
     );
-    res.status(500).json({ error: 'Falha no envio: ' + e.message });
+    res.status(500).json({
+      error:      'Falha no envio: ' + e.message,
+      api_status: apiStatus,
+      api_body:   apiBody,
+    });
   }
 }));
 
