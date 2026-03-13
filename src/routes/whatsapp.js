@@ -146,10 +146,12 @@ router.post('/send', auth, roles('admin', 'analista', 'diretor'), asyncHandler(a
 
   try {
     await axios.post(WA_API_URL, {
-      numbers,
-      message: msg,
-      format:  config.formato || 'texto',
-      id:      waId,
+      whatsappId: waId,
+      messages: numbers.map(n => ({
+        number: n,
+        name:   n,
+        body:   msg,
+      })),
     }, {
       headers: {
         'Content-Type':  'application/json',
