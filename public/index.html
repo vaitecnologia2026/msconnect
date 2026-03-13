@@ -184,12 +184,13 @@ const LOGO_S="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEsAAAAgCAYAAABafYVz
 // =====================================================================
 // API helper
 // =====================================================================
+const API_BASE=window.location.port==='5500'||window.location.port==='5501'?'http://localhost:3000':'';
 async function api(method, path, body){
   const token=localStorage.getItem('msc_token');
   const opts={method,headers:{'Content-Type':'application/json'}};
   if(token)opts.headers['Authorization']=`Bearer ${token}`;
   if(body)opts.body=JSON.stringify(body);
-  const r=await fetch('/api'+path,opts);
+  const r=await fetch(API_BASE+'/api'+path,opts);
   if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||r.status)}
   return r.json();
 }
@@ -205,7 +206,7 @@ const RL={admin:'Admin',diretor:'Diretor',analista:'Analista',gerente:'Gerente',
 
 let S={users:[],sellers:[],sellerStore:{},stores:[],planos:[],aparelhos:[],accessories:[],services:[...DEF_SVC],tipos:[...DEF_TIPO],
 metas:{},sales:{},cancellations:{},clients:[],saleRecords:[],
-waConfig:{numbers:[],reportItems:{totalColab:true,improdutivos:true,ocorrencias:true,producaoTotal:true,rankProd:true,rankImprod:true,abaixoMeta:true},horario:'18:00',ativo:false,apiEndpoint:'',formato:'texto'},waLogs:[]};
+waConfig:{numbers:[],reportItems:{totalColab:true,improdutivos:true,ocorrencias:true,producaoTotal:true,rankProd:true,rankImprod:true,abaixoMeta:true},horario:'18:00',ativo:false,apiEndpoint:'',formato:'texto',waToken:'',waId:''},waLogs:[]};
 
 // ID maps para operacoes de backend
 let _saleIdMap={},_sellerIdMap={},_storeIdMap={},_planIdMap={},_apIdMap={},_accIdMap={},_svcIdMap={},_tipoIdMap={};
@@ -249,7 +250,7 @@ async function ld(){
     _tipoIdMap={};tipos.forEach(t=>{_tipoIdMap[t.name]=t.id});
     S.users=users.map(u=>({...u,_id:u.id}));
     S.metas=metas;
-    if(waConfig){S.waConfig={numbers:waConfig.numbers||[],reportItems:waConfig.report_items||{},horario:waConfig.horario||'18:00',ativo:!!waConfig.ativo,apiEndpoint:waConfig.api_endpoint||'',formato:waConfig.formato||'texto'}}
+    if(waConfig){S.waConfig={numbers:waConfig.numbers||[],reportItems:waConfig.report_items||{},horario:waConfig.horario||'18:00',ativo:!!waConfig.ativo,apiEndpoint:waConfig.api_endpoint||'',formato:waConfig.formato||'texto',waToken:waConfig.wa_token||'',waId:waConfig.wa_id||''}}
     S.waLogs=Array.isArray(waLogs)?waLogs:[];
     await ldMonth();
   }catch(e){console.error('ld error',e)}
@@ -434,7 +435,8 @@ ${waRI.map(k=>`<label style="display:flex;align-items:center;gap:8px;margin-bott
 <div class="fg"><label class="fl">Horario Envio</label><input class="fi" id="waH" type="time" value="${S.waConfig?.horario||'18:00'}" onchange="saveWACfg()"></div>
 <div class="fg"><label class="fl">Formato</label><select class="fi" id="waF" onchange="saveWACfg()"><option value="texto" ${S.waConfig?.formato==='texto'?'selected':''}>Texto</option><option value="html" ${S.waConfig?.formato==='html'?'selected':''}>HTML</option></select></div>
 </div>
-<div class="fg" style="margin-top:8px"><label class="fl">Endpoint API</label><input class="fi" id="waEP" value="${S.waConfig?.apiEndpoint||''}" onchange="saveWACfg()"></div>
+<div class="fg" style="margin-top:8px"><label class="fl">Token</label><input class="fi" id="waTK" type="password" value="${S.waConfig?.waToken||''}" onchange="saveWACfg()" placeholder="Bearer token"></div>
+<div class="fg" style="margin-top:8px"><label class="fl">ID da Instancia</label><input class="fi" id="waID" value="${S.waConfig?.waId||''}" onchange="saveWACfg()" placeholder="ID"></div>
 <div style="display:flex;gap:12px;margin-top:12px">
 <button class="${S.waConfig?.ativo?'Bd':'B'}" onclick="toggleWA()">${S.waConfig?.ativo?'Desativar Envio':'Ativar Envio'}</button>
 <button class="B" onclick="sendWANow()">Enviar Agora</button>
@@ -691,8 +693,9 @@ window.saveMetas=async function(){
 async function saveWACfg(){
   S.waConfig.horario=document.getElementById('waH')?.value||S.waConfig.horario;
   S.waConfig.formato=document.getElementById('waF')?.value||S.waConfig.formato;
-  S.waConfig.apiEndpoint=document.getElementById('waEP')?.value||S.waConfig.apiEndpoint;
-  try{await api('PUT','/whatsapp/config',{horario:S.waConfig.horario,formato:S.waConfig.formato,api_endpoint:S.waConfig.apiEndpoint})}catch(e){tt('Erro: '+e.message,'te')}
+  S.waConfig.waToken=document.getElementById('waTK')?.value??S.waConfig.waToken;
+  S.waConfig.waId=document.getElementById('waID')?.value??S.waConfig.waId;
+  try{await api('PUT','/whatsapp/config',{horario:S.waConfig.horario,formato:S.waConfig.formato,wa_token:S.waConfig.waToken,wa_id:S.waConfig.waId})}catch(e){tt('Erro: '+e.message,'te')}
 }
 window.addWANum=async function(){const v=document.getElementById('waNumI').value.trim().replace(/\D/g,'');if(!v||v.length<10){tt('Numero invalido','te');return}
 const nums=[...(S.waConfig.numbers||[])];if(nums.includes(v)){tt('Ja cadastrado','te');return}nums.push(v);
@@ -705,7 +708,8 @@ window.toggleWAItem=async function(k,v){if(!S.waConfig.reportItems)S.waConfig.re
 try{await api('PUT','/whatsapp/config',{report_items:S.waConfig.reportItems})}catch(e){console.error(e)}}
 window.sendWANow=async function(){
   if(!S.waConfig.numbers?.length){tt('Cadastre numeros','te');return}
-  if(!S.waConfig.apiEndpoint){tt('Configure endpoint','te');return}
+  if(!S.waConfig.waToken){tt('Configure o Token','te');return}
+  if(!S.waConfig.waId){tt('Configure o ID','te');return}
   try{
     const r=await api('POST','/whatsapp/send',{month:cm,year:2026});
     const logs=await api('GET','/whatsapp/logs').catch(()=>[]);S.waLogs=logs;
